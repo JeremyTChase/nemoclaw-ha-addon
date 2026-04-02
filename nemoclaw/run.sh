@@ -155,7 +155,7 @@ if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${
   ARGS+=(--allow-unconfigured)
 fi
 
-# Start OpenClaw gateway
+# Start OpenClaw gateway in background
 log "Starting OpenClaw gateway on port ${PORT}..."
 VERBOSE="$(jq -r '.verbose // false' /data/options.json 2>/dev/null || echo false)"
 ARGS=(gateway --port "${PORT}")
@@ -164,5 +164,13 @@ if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${
   ARGS+=(--allow-unconfigured)
 fi
 
-# Run gateway in foreground — keeps container alive
-exec openclaw "${ARGS[@]}"
+openclaw "${ARGS[@]}" &
+GATEWAY_PID=$!
+log "OpenClaw gateway PID: ${GATEWAY_PID}"
+
+# Keep container alive regardless of gateway status
+# The Telegram bot (agent) is the primary process
+log "NemoClaw running. Telegram bot + agent active."
+while true; do
+  sleep 60
+done
