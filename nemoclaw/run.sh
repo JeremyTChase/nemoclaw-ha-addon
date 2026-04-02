@@ -151,18 +151,14 @@ if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${
   ARGS+=(--allow-unconfigured)
 fi
 
-# Kill any leftover gateway from previous runs
-openclaw gateway stop 2>/dev/null || true
-sleep 2
-
+# Start OpenClaw gateway
 log "Starting OpenClaw gateway on port ${PORT}..."
-openclaw "${ARGS[@]}" &
-GATEWAY_PID=$!
-log "OpenClaw gateway PID: ${GATEWAY_PID}"
+VERBOSE="$(jq -r '.verbose // false' /data/options.json 2>/dev/null || echo false)"
+ARGS=(gateway --port "${PORT}")
+[ "${VERBOSE}" = "true" ] && ARGS+=(--verbose)
+if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${CONFIG_PATH}" >/dev/null 2>&1; then
+  ARGS+=(--allow-unconfigured)
+fi
 
-# Keep container alive — wait for either process
-wait -n ${AGENT_PID} ${GATEWAY_PID} 2>/dev/null || true
-
-# If we get here, one process died. Keep the other running.
-log "A process exited. Keeping container alive..."
-while true; do sleep 60; done
+# Run gateway in foreground — keeps container alive
+exec openclaw "${ARGS[@]}"
