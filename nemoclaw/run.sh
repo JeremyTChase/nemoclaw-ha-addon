@@ -39,6 +39,10 @@ export CI=true
 export OPENCLAW_STATE_DIR="${STATE_DIR}"
 export OPENCLAW_CONFIG_PATH="${CONFIG_PATH}"
 
+# Use separate temp dir to avoid lock file conflicts with other OpenClaw instances
+export TMPDIR="/tmp/nemoclaw-runtime"
+mkdir -p "${TMPDIR}"
+
 # ── Read HA options ────────────────────────────────────────────────
 
 OPTIONS_FILE="/data/options.json"
