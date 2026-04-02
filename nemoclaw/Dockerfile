@@ -38,6 +38,7 @@ RUN npm install -g pnpm openclaw \
 
 # Python deps for portfolio skills
 RUN pip3 install --no-cache-dir --break-system-packages \
+  python-telegram-bot \
   yfinance \
   pandas \
   numpy \
