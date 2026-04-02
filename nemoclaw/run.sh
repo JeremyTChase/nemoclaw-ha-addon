@@ -111,6 +111,8 @@ else
   log "OpenClaw config exists"
 fi
 
+PORT="$(jq -r '.port // 18791' /data/options.json 2>/dev/null || echo 18791)"
+
 # Ensure gateway port and auth token in config
 if [ -f "${CONFIG_PATH}" ]; then
   # Always enforce our port to avoid conflicts with other OpenClaw instances
@@ -140,7 +142,6 @@ log "Agent PID: ${AGENT_PID}"
 
 # ── Start OpenClaw gateway (foreground) ────────────────────────────
 
-PORT="$(jq -r '.port // 18790' /data/options.json)"
 VERBOSE="$(jq -r '.verbose // false' /data/options.json)"
 
 ARGS=(gateway --port "${PORT}")
