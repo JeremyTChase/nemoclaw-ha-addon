@@ -48,6 +48,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/analyse — run market analysis now\n"
         "/alerts — check for significant moves\n"
         "/news — check relevant news\n"
+        "/status — system status + vLLM check\n"
         "/help — show this message\n\n"
         "Or just chat naturally:\n"
         "  'bought 50 AVGO'\n"
@@ -59,6 +60,54 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @_auth
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await cmd_start(update, context)
+
+
+@_auth
+async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """System status check."""
+    import os
+    lines = ["🔧 NemoClaw Status\n"]
+
+    # Portfolios
+    portfolios = db.get_portfolios()
+    lines.append(f"Portfolios: {len(portfolios)}")
+    for p in portfolios:
+        pos = db.get_positions(p["id"])
+        lines.append(f"  {p['name']}: {len(pos)} positions")
+
+    # vLLM
+    try:
+        import requests
+        r = requests.get(f"{config.VLLM_BASE_URL}/models", timeout=3)
+        if r.ok:
+            models_data = r.json().get("data", [])
+            model_name = models_data[0]["id"] if models_data else "unknown"
+            lines.append(f"\nvLLM: ✅ online ({model_name})")
+        else:
+            lines.append(f"\nvLLM: ❌ error ({r.status_code})")
+    except Exception as e:
+        lines.append(f"\nvLLM: ❌ offline ({type(e).__name__})")
+
+    # DB
+    db_path = config.PORTFOLIO_DB_PATH
+    if os.path.exists(db_path):
+        size_mb = os.path.getsize(db_path) / (1024 * 1024)
+        lines.append(f"Database: ✅ {size_mb:.1f} MB")
+    else:
+        lines.append(f"Database: ❌ not found")
+
+    # Latest agent activity
+    logs = db.get_agent_logs(limit=1)
+    if logs:
+        last = logs[0]
+        lines.append(f"\nLast agent: {last.get('task_type', '?')} at {last.get('created_at', '?')[:16]}")
+
+    # Scheduler
+    import schedule
+    jobs = schedule.get_jobs()
+    lines.append(f"Scheduled jobs: {len(jobs)}")
+
+    await update.message.reply_text("\n".join(lines))
 
 
 @_auth
@@ -353,6 +402,7 @@ def build_app():
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("portfolio", cmd_portfolio))
     app.add_handler(CommandHandler("sip", cmd_sip))
     app.add_handler(CommandHandler("isa", cmd_isa))
