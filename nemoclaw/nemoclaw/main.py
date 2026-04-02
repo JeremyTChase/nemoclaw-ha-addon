@@ -10,7 +10,7 @@ import schedule
 from . import config, db, portfolio
 from .bot import build_app
 from .tasks import (
-    run_price_update, run_price_alerts_with_analysis,
+    run_price_update, run_smart_alerts, run_news_check,
     run_daily_analysis, run_weekly_review, run_daily_snapshot,
 )
 
@@ -20,7 +20,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger("nemoclaw")
 
-# Reference to the bot app for sending proactive messages
 _bot_app = None
 
 
@@ -28,10 +27,12 @@ async def _send_telegram(text):
     """Send a proactive message to Jeremy via Telegram."""
     if _bot_app and config.TELEGRAM_CHAT_ID:
         try:
-            await _bot_app.bot.send_message(
-                chat_id=config.TELEGRAM_CHAT_ID,
-                text=text[:4096],  # Telegram message limit
-            )
+            # Split long messages (Telegram limit is 4096 chars)
+            for i in range(0, len(text), 4096):
+                await _bot_app.bot.send_message(
+                    chat_id=config.TELEGRAM_CHAT_ID,
+                    text=text[i:i+4096],
+                )
         except Exception as e:
             logger.error(f"Failed to send Telegram message: {e}")
 
@@ -51,27 +52,36 @@ def _send_sync(text):
 
 def _scheduled_daily_analysis():
     try:
-        analysis = run_daily_analysis()
-        if analysis:
-            _send_sync(f"Good morning.\n\n{analysis}")
+        msg = run_daily_analysis()
+        if msg:
+            _send_sync(msg)
     except Exception as e:
         logger.error(f"Daily analysis failed: {e}")
 
 
-def _scheduled_price_alerts():
+def _scheduled_smart_alerts():
     try:
-        result = run_price_alerts_with_analysis()
-        if result:
-            _send_sync(result)
+        msg = run_smart_alerts()
+        if msg:
+            _send_sync(msg)
     except Exception as e:
-        logger.error(f"Price alerts failed: {e}")
+        logger.error(f"Smart alerts failed: {e}")
+
+
+def _scheduled_news_check():
+    try:
+        msg = run_news_check()
+        if msg:
+            _send_sync(msg)
+    except Exception as e:
+        logger.error(f"News check failed: {e}")
 
 
 def _scheduled_weekly_review():
     try:
-        review = run_weekly_review()
-        if review:
-            _send_sync(f"Weekly Portfolio Review\n\n{review}")
+        msg = run_weekly_review()
+        if msg:
+            _send_sync(msg)
     except Exception as e:
         logger.error(f"Weekly review failed: {e}")
 
@@ -97,18 +107,31 @@ def _scheduler_thread():
     review_day = config.WEEKLY_REVIEW_DAY
     review_time = config.WEEKLY_REVIEW_TIME
 
+    # Morning brief — once per day
     schedule.every().day.at(daily_time).do(_scheduled_daily_analysis)
-    schedule.every().day.at("21:05").do(_scheduled_snapshot)
+
+    # Price updates — every 15min during market hours (silent)
     schedule.every(interval).minutes.do(_scheduled_price_update)
-    schedule.every(interval).minutes.do(_scheduled_price_alerts)
+
+    # Smart alerts — every 30min during market hours (only fires on big moves, deduped)
+    schedule.every(30).minutes.do(_scheduled_smart_alerts)
+
+    # News check — every 2 hours during market hours
+    schedule.every(2).hours.do(_scheduled_news_check)
+
+    # Weekly review — weekend
     getattr(schedule.every(), review_day).at(review_time).do(_scheduled_weekly_review)
 
+    # Daily snapshot — after market close (silent)
+    schedule.every().day.at("21:05").do(_scheduled_snapshot)
+
     logger.info("Scheduler started:")
-    logger.info(f"  Daily analysis: {daily_time} UTC")
-    logger.info(f"  Daily snapshot: 21:05 UTC")
-    logger.info(f"  Price updates: every {interval}min (market hours)")
-    logger.info(f"  Price alerts: every {interval}min (market hours)")
+    logger.info(f"  Morning brief: {daily_time} UTC (once)")
+    logger.info(f"  Price updates: every {interval}min (silent)")
+    logger.info(f"  Smart alerts: every 30min (only significant moves, deduped)")
+    logger.info(f"  News check: every 2 hours")
     logger.info(f"  Weekly review: {review_day} {review_time} UTC")
+    logger.info(f"  Daily snapshot: 21:05 UTC (silent)")
 
     while True:
         schedule.run_pending()
@@ -135,7 +158,7 @@ def main():
     scheduler = threading.Thread(target=_scheduler_thread, daemon=True)
     scheduler.start()
 
-    # Build and run Telegram bot (blocking — runs the event loop)
+    # Build and run Telegram bot (blocking)
     _bot_app = build_app()
     logger.info("Telegram bot starting...")
     _bot_app.run_polling(allowed_updates=["message", "my_chat_member"])

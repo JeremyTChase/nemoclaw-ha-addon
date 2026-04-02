@@ -36,7 +36,7 @@ def _auth(func):
 @_auth
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "NemoClaw online.\n\n"
+        "NemoClaw online. 🐺\n\n"
         "Commands:\n"
         "/portfolio — view positions & values\n"
         "/sip — SIP (SIPP) summary\n"
@@ -46,8 +46,13 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "/sell TICKER SHARES — log a sell\n"
         "/search QUERY — find a ticker\n"
         "/analyse — run market analysis now\n"
-        "/alerts — check price alerts now\n"
-        "/help — show this message"
+        "/alerts — check for significant moves\n"
+        "/news — check relevant news\n"
+        "/help — show this message\n\n"
+        "Or just chat naturally:\n"
+        "  'bought 50 AVGO'\n"
+        "  'sold all MU'\n"
+        "  'how does the Middle East affect my portfolio?'"
     )
 
 
@@ -224,12 +229,25 @@ async def cmd_analyse(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @_auth
 async def cmd_alerts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check price alerts now."""
-    from .tasks import check_price_alerts
-    alerts = check_price_alerts()
-    if alerts:
-        await update.message.reply_text("\n".join(alerts))
+    from .tasks import run_smart_alerts
+    await update.message.reply_text("Checking for significant moves...")
+    result = run_smart_alerts()
+    if result:
+        await update.message.reply_text(result)
     else:
-        await update.message.reply_text("No significant price moves right now.")
+        await update.message.reply_text("No significant moves right now.")
+
+
+@_auth
+async def cmd_news(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check for relevant news."""
+    from .tasks import run_news_check
+    await update.message.reply_text("Checking news feeds...")
+    result = run_news_check()
+    if result:
+        await update.message.reply_text(result)
+    else:
+        await update.message.reply_text("No relevant news right now.")
 
 
 @_auth
@@ -345,6 +363,7 @@ def build_app():
     app.add_handler(CommandHandler("analyse", cmd_analyse))
     app.add_handler(CommandHandler("analyze", cmd_analyse))
     app.add_handler(CommandHandler("alerts", cmd_alerts))
+    app.add_handler(CommandHandler("news", cmd_news))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     return app

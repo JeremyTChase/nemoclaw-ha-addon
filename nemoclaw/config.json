@@ -1,6 +1,6 @@
 {
   "name": "NemoClaw",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "slug": "nemoclaw",
   "description": "AI financial agent — portfolio monitoring, trade logging, and market analysis via Telegram. Powered by vLLM.",
   "url": "https://github.com/JeremyTChase/nemoclaw-ha-addon",
