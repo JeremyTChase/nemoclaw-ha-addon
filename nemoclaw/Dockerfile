@@ -48,7 +48,7 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 
 # Copy portfolio skills and run script
 COPY skills/ /opt/nemoclaw/skills/
-COPY nemoclaw/ /opt/nemoclaw/agent/
+COPY nemoclaw/ /opt/nemoclaw/agent/nemoclaw/
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 

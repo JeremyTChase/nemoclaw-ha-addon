@@ -140,5 +140,9 @@ if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${
   ARGS+=(--allow-unconfigured)
 fi
 
+# Kill any leftover gateway from previous runs
+openclaw gateway stop 2>/dev/null || true
+sleep 1
+
 log "Starting OpenClaw gateway on port ${PORT}..."
 exec openclaw "${ARGS[@]}"
