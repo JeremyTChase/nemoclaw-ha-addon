@@ -147,23 +147,70 @@ fi
 # ── Start portfolio data agent in background ───────────────────────
 # Handles price updates and snapshots only — no Telegram (OpenClaw does that)
 
-log "Starting data agent (price updates, snapshots)..."
+log "Starting data agent (prices, alerts, analysis)..."
 PYTHONPATH=/opt/nemoclaw/agent python3 -c "
-import sys, os, time, logging, schedule
+import sys, os, time, logging, schedule, requests
 sys.path.insert(0, '/opt/nemoclaw/agent')
 os.environ.setdefault('PORTFOLIO_DB_PATH', os.environ.get('PORTFOLIO_DB_PATH', '/share/portfolio-dashboard/portfolio.db'))
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s')
 logger = logging.getLogger('nemoclaw.agent')
-from nemoclaw import portfolio
-from nemoclaw.tasks import run_price_update, run_daily_snapshot
+from nemoclaw import portfolio, config
+from nemoclaw.tasks import run_price_update, run_daily_snapshot, run_smart_alerts, run_news_check, run_daily_analysis, run_weekly_review
+
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '-5290115098')
+
+def send_telegram(text):
+    if not BOT_TOKEN or not CHAT_ID:
+        return
+    try:
+        for i in range(0, len(text), 4096):
+            requests.post(f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage',
+                json={'chat_id': CHAT_ID, 'text': text[i:i+4096]}, timeout=10)
+    except Exception as e:
+        logger.error(f'Telegram send failed: {e}')
+
+def task_smart_alerts():
+    msg = run_smart_alerts()
+    if msg:
+        send_telegram(msg)
+
+def task_news():
+    msg = run_news_check()
+    if msg:
+        send_telegram(msg)
+
+def task_daily():
+    msg = run_daily_analysis()
+    if msg:
+        send_telegram(msg)
+
+def task_weekly():
+    msg = run_weekly_review()
+    if msg:
+        send_telegram(msg)
+
 try:
     portfolio.fetch_prices()
     logger.info('Initial price fetch complete')
 except Exception as e:
     logger.warning(f'Initial price fetch failed: {e}')
+
 schedule.every(15).minutes.do(run_price_update)
+schedule.every(30).minutes.do(task_smart_alerts)
+schedule.every(2).hours.do(task_news)
+schedule.every().day.at('07:30').do(task_daily)
 schedule.every().day.at('21:05').do(run_daily_snapshot)
-logger.info('Data agent running: prices every 15min, snapshot at 21:05')
+schedule.every().saturday.at('09:00').do(task_weekly)
+
+logger.info('Data agent running:')
+logger.info('  Prices: every 15min (silent)')
+logger.info('  Smart alerts: every 30min (Telegram if significant)')
+logger.info('  News: every 2hrs (Telegram if relevant)')
+logger.info('  Morning brief: 07:30 UTC (Telegram)')
+logger.info('  Weekly review: Saturday 09:00 UTC (Telegram)')
+logger.info('  Snapshot: 21:05 UTC (silent)')
+
 while True:
     schedule.run_pending()
     time.sleep(30)
