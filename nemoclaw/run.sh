@@ -3,7 +3,7 @@ set -euo pipefail
 
 log() { printf "[nemoclaw] %s\n" "$*"; }
 
-log "NemoClaw starting — OpenClaw + Portfolio Skills"
+log "JezFinanceClaw starting — OpenClaw + Portfolio Skills"
 
 # ── Config ─────────────────────────────────────────────────────────
 

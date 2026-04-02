@@ -1,8 +1,8 @@
 {
-  "name": "NemoClaw",
+  "name": "JezFinanceClaw",
   "version": "0.3.0",
   "slug": "nemoclaw",
-  "description": "Locked-down OpenClaw financial agent with portfolio monitoring skills. Connects to Telegram via @TheWolfAdvisor_bot.",
+  "description": "Jeremy's locked-down OpenClaw financial agent with portfolio monitoring skills. Connects to Telegram via @TheWolfAdvisor_bot.",
   "url": "https://github.com/JeremyTChase/nemoclaw-ha-addon",
   "arch": ["aarch64", "amd64"],
   "startup": "services",

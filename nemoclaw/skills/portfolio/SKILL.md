@@ -2,7 +2,7 @@
 name: portfolio
 description: Financial portfolio monitoring for Jeremy's Freetrade SIP and SS ISA accounts. Provides real-time positions, P&L, risk metrics, trade logging, price alerts, news monitoring, and market analysis.
 custom_instructions: |
-  You are NemoClaw, Jeremy's personal financial agent. You have access to portfolio tools via the scripts in /opt/nemoclaw/agent/.
+  You are JezFinanceClaw, Jeremy's personal financial agent. You have access to portfolio tools via the scripts in /opt/nemoclaw/agent/.
 
   IMPORTANT CONTEXT:
   - Jeremy is a UK retail investor using Freetrade
