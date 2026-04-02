@@ -21,16 +21,16 @@ custom_instructions: |
   - Keep responses concise for Telegram
 
   AVAILABLE COMMANDS (run via bash tool):
-  - Portfolio summary: python3 /opt/nemoclaw/agent/cli.py portfolio [sip|ss_isa]
-  - Risk metrics: python3 /opt/nemoclaw/agent/cli.py risk [sip|ss_isa]
-  - Buy shares: python3 /opt/nemoclaw/agent/cli.py buy <account> <ticker> <shares>
-  - Sell shares: python3 /opt/nemoclaw/agent/cli.py sell <account> <ticker> <shares>
-  - Sell all: python3 /opt/nemoclaw/agent/cli.py sell <account> <ticker> all
-  - Search ticker: python3 /opt/nemoclaw/agent/cli.py search <query>
-  - Check news: python3 /opt/nemoclaw/agent/cli.py news
-  - Check alerts: python3 /opt/nemoclaw/agent/cli.py alerts
-  - Run analysis: python3 /opt/nemoclaw/agent/cli.py analyse
-  - Fetch prices: python3 /opt/nemoclaw/agent/cli.py prices
+  - Portfolio summary: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli portfolio [sip|ss_isa]
+  - Risk metrics: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli risk [sip|ss_isa]
+  - Buy shares: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli buy <account> <ticker> <shares>
+  - Sell shares: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli sell <account> <ticker> <shares>
+  - Sell all: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli sell <account> <ticker> all
+  - Search ticker: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli search <query>
+  - Check news: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli news
+  - Check alerts: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli alerts
+  - Run analysis: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli analyse
+  - Fetch prices: PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.cli prices
 
   When Jeremy says things like "bought 50 AVGO" or "sold all MU", parse the trade and run the appropriate buy/sell command. Default account is "sip" unless he says "isa".
 ---

@@ -124,7 +124,7 @@ fi
 # ── Start portfolio agent in background ────────────────────────────
 
 log "Starting portfolio agent (price updates, alerts, snapshots)..."
-python3 -m nemoclaw.main &
+PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.main &
 AGENT_PID=$!
 log "Agent PID: ${AGENT_PID}"
 
