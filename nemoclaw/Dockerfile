@@ -1,18 +1,57 @@
-FROM python:3.12-slim
+FROM node:22-bookworm-slim
+
+ARG BUILD_ARCH
+ARG BUILD_VERSION
+
+LABEL io.hass.type="addon" \
+  io.hass.arch="${BUILD_ARCH}" \
+  io.hass.version="${BUILD_VERSION}"
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl jq && \
-    rm -rf /var/lib/apt/lists/*
+# System deps
+RUN apt-get update \
+  && apt-get upgrade -y \
+  && apt-get install -y --no-install-recommends \
+    bash \
+    ca-certificates \
+    git \
+    jq \
+    ripgrep \
+    curl \
+    nano \
+    unzip \
+    python3 \
+    python3-pip \
+    python3-venv \
+  && apt-get clean \
+  && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Node package managers + OpenClaw
+ENV PNPM_HOME=/pnpm
+ENV PATH="${PNPM_HOME}:${PATH}"
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN npm install -g pnpm openclaw \
+  && mkdir -p /pnpm \
+  && pnpm config set global-bin-dir /pnpm \
+  && pnpm add -g clawdhub
 
-COPY nemoclaw/ ./nemoclaw/
+# Python deps for portfolio skills
+RUN pip3 install --no-cache-dir --break-system-packages \
+  yfinance \
+  pandas \
+  numpy \
+  requests \
+  feedparser \
+  openai \
+  schedule
+
+# Copy portfolio skills and run script
+COPY skills/ /opt/nemoclaw/skills/
+COPY nemoclaw/ /opt/nemoclaw/agent/
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
+
+WORKDIR /opt/nemoclaw
 
 CMD [ "/run.sh" ]
