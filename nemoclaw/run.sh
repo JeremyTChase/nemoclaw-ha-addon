@@ -137,26 +137,44 @@ print(f\"gateway port={cfg['gateway']['port']}, auth={'set' if cfg['gateway']['a
 "
 fi
 
-# ── Start portfolio agent in background ────────────────────────────
+# ── Set Telegram bot token for OpenClaw ────────────────────────────
 
-log "Starting portfolio agent (price updates, alerts, snapshots)..."
-PYTHONPATH=/opt/nemoclaw/agent python3 -m nemoclaw.main &
-AGENT_PID=$!
-log "Agent PID: ${AGENT_PID}"
-
-# ── Start OpenClaw gateway (foreground) ────────────────────────────
-
-VERBOSE="$(jq -r '.verbose // false' /data/options.json)"
-
-ARGS=(gateway --port "${PORT}")
-[ "${VERBOSE}" = "true" ] && ARGS+=(--verbose)
-
-if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${CONFIG_PATH}" >/dev/null 2>&1; then
-  ARGS+=(--allow-unconfigured)
+if [ -n "${TELEGRAM_BOT_TOKEN}" ] && [ "${TELEGRAM_BOT_TOKEN}" != "null" ]; then
+  export TELEGRAM_BOT_TOKEN
+  log "Telegram bot token set for OpenClaw"
 fi
 
-# Start OpenClaw gateway in background
-log "Starting OpenClaw gateway on port ${PORT}..."
+# ── Start portfolio data agent in background ───────────────────────
+# Handles price updates and snapshots only — no Telegram (OpenClaw does that)
+
+log "Starting data agent (price updates, snapshots)..."
+PYTHONPATH=/opt/nemoclaw/agent python3 -c "
+import sys, os, time, logging, schedule
+sys.path.insert(0, '/opt/nemoclaw/agent')
+os.environ.setdefault('PORTFOLIO_DB_PATH', os.environ.get('PORTFOLIO_DB_PATH', '/share/portfolio-dashboard/portfolio.db'))
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s')
+logger = logging.getLogger('nemoclaw.agent')
+from nemoclaw import portfolio
+from nemoclaw.tasks import run_price_update, run_daily_snapshot
+try:
+    portfolio.fetch_prices()
+    logger.info('Initial price fetch complete')
+except Exception as e:
+    logger.warning(f'Initial price fetch failed: {e}')
+schedule.every(15).minutes.do(run_price_update)
+schedule.every().day.at('21:05').do(run_daily_snapshot)
+logger.info('Data agent running: prices every 15min, snapshot at 21:05')
+while True:
+    schedule.run_pending()
+    time.sleep(30)
+" &
+AGENT_PID=$!
+log "Data agent PID: ${AGENT_PID}"
+
+# ── Start OpenClaw gateway (foreground) ────────────────────────────
+# OpenClaw handles ALL messaging: Telegram, /status, /model, conversations
+# Portfolio skills teach it financial commands via SKILL.md + cli.py
+
 VERBOSE="$(jq -r '.verbose // false' /data/options.json 2>/dev/null || echo false)"
 ARGS=(gateway --port "${PORT}")
 [ "${VERBOSE}" = "true" ] && ARGS+=(--verbose)
@@ -164,13 +182,5 @@ if [ ! -f "${CONFIG_PATH}" ] || ! jq -e '(.gateway.mode // "") | length > 0' "${
   ARGS+=(--allow-unconfigured)
 fi
 
-openclaw "${ARGS[@]}" &
-GATEWAY_PID=$!
-log "OpenClaw gateway PID: ${GATEWAY_PID}"
-
-# Keep container alive regardless of gateway status
-# The Telegram bot (agent) is the primary process
-log "NemoClaw running. Telegram bot + agent active."
-while true; do
-  sleep 60
-done
+log "Starting OpenClaw gateway on port ${PORT} (handles Telegram + all commands)..."
+exec openclaw "${ARGS[@]}"
