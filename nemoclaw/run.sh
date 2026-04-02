@@ -142,7 +142,16 @@ fi
 
 # Kill any leftover gateway from previous runs
 openclaw gateway stop 2>/dev/null || true
-sleep 1
+sleep 2
 
 log "Starting OpenClaw gateway on port ${PORT}..."
-exec openclaw "${ARGS[@]}"
+openclaw "${ARGS[@]}" &
+GATEWAY_PID=$!
+log "OpenClaw gateway PID: ${GATEWAY_PID}"
+
+# Keep container alive — wait for either process
+wait -n ${AGENT_PID} ${GATEWAY_PID} 2>/dev/null || true
+
+# If we get here, one process died. Keep the other running.
+log "A process exited. Keeping container alive..."
+while true; do sleep 60; done

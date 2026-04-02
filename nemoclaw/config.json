@@ -17,7 +17,7 @@
   },
   "options": {
     "install_mode": "package",
-    "port": 18790,
+    "port": 18791,
     "verbose": false,
     "repo_url": "https://github.com/openclaw/openclaw.git",
     "branch": "",
