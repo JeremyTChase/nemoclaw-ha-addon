@@ -111,14 +111,24 @@ else
   log "OpenClaw config exists"
 fi
 
-# Ensure gateway auth token
+# Ensure gateway port and auth token in config
 if [ -f "${CONFIG_PATH}" ]; then
-  if ! jq -e '(.gateway.auth.token // "") | tostring | length > 0' "${CONFIG_PATH}" >/dev/null 2>&1; then
-    token="$(node -e "process.stdout.write(require('crypto').randomBytes(24).toString('hex'))")"
-    tmp="$(mktemp)"
-    jq --arg t "${token}" '.gateway = (.gateway // {}) | .gateway.auth = (.gateway.auth // {}) | .gateway.auth.token = $t | .gateway.auth.mode = (.gateway.auth.mode // "token")' "${CONFIG_PATH}" > "${tmp}" && mv "${tmp}" "${CONFIG_PATH}"
-    log "gateway auth token set"
-  fi
+  # Always enforce our port to avoid conflicts with other OpenClaw instances
+  python3 -c "
+import json
+with open('${CONFIG_PATH}') as f:
+    cfg = json.load(f)
+cfg.setdefault('gateway', {})
+cfg['gateway']['port'] = ${PORT}
+if not cfg['gateway'].get('auth', {}).get('token'):
+    import secrets
+    cfg['gateway'].setdefault('auth', {})
+    cfg['gateway']['auth']['token'] = secrets.token_hex(24)
+    cfg['gateway']['auth']['mode'] = 'token'
+with open('${CONFIG_PATH}', 'w') as f:
+    json.dump(cfg, f, indent=2)
+print(f\"gateway port={cfg['gateway']['port']}, auth={'set' if cfg['gateway']['auth'].get('token') else 'missing'}\")
+"
 fi
 
 # ── Start portfolio agent in background ────────────────────────────
