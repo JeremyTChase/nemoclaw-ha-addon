@@ -184,3 +184,156 @@ def take_position_snapshot(portfolio_id, snapshot_date=None):
         )
 
     return total
+
+
+# ── Dashboard data queries ───────────────────────────────────────────
+
+
+def get_risk_history(portfolio_id, days=90):
+    """Get risk metrics history from dashboard snapshots."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT date, total_value, volatility_annual, sharpe_ratio, "
+            "sortino_ratio, max_drawdown, cvar_95 "
+            "FROM risk_metrics_history WHERE portfolio_id=? "
+            "ORDER BY date DESC LIMIT ?",
+            (portfolio_id, days),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_transaction_log(portfolio_id=None, limit=20):
+    """Get recent transactions logged by dashboard/agent."""
+    with get_conn() as conn:
+        if portfolio_id:
+            rows = conn.execute(
+                "SELECT * FROM transaction_log WHERE portfolio_id=? "
+                "ORDER BY logged_at DESC LIMIT ?",
+                (portfolio_id, limit),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT * FROM transaction_log ORDER BY logged_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_position_snapshots(portfolio_id, days=30):
+    """Get historical position snapshots for drift analysis."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT snapshot_date, ticker, shares, price, market_value, weight "
+            "FROM position_snapshots WHERE portfolio_id=? "
+            "AND snapshot_date >= date('now', ?||' days') "
+            "ORDER BY snapshot_date DESC, weight DESC",
+            (portfolio_id, str(-days)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_macro_history(indicator=None, days=90):
+    """Get macro indicator history."""
+    with get_conn() as conn:
+        if indicator:
+            rows = conn.execute(
+                "SELECT indicator, date, value FROM macro_indicators "
+                "WHERE indicator=? ORDER BY date DESC LIMIT ?",
+                (indicator, days),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT indicator, date, value FROM macro_indicators "
+                "WHERE date >= date('now', ?||' days') ORDER BY indicator, date DESC",
+                (str(-days),),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_ohlcv_prices(ticker, days=30):
+    """Get OHLCV price bars (from IBKR or yfinance) if available."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT date, open, high, low, close, volume, source "
+            "FROM ohlcv_prices WHERE ticker=? "
+            "AND date >= date('now', ?||' days') ORDER BY date DESC",
+            (ticker, str(-days)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_portfolio_total_value_history(portfolio_id, days=90):
+    """Get total portfolio value over time from risk_metrics_history."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT date, total_value FROM risk_metrics_history "
+            "WHERE portfolio_id=? AND total_value IS NOT NULL "
+            "ORDER BY date DESC LIMIT ?",
+            (portfolio_id, days),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+# ── Optimization results ─────────────────────────────────────────────
+
+
+def ensure_optimization_table():
+    """Create optimization_results table if it doesn't exist."""
+    with get_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS optimization_results (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                portfolio_id TEXT NOT NULL,
+                run_date TEXT NOT NULL,
+                run_type TEXT NOT NULL DEFAULT 'on_demand',
+                weights TEXT NOT NULL,
+                cash REAL,
+                expected_return REAL,
+                cvar REAL,
+                solver TEXT,
+                stress_scenario TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+
+
+def insert_optimization_result(portfolio_id, run_type, weights_json,
+                                cash, expected_return, cvar, solver,
+                                stress_scenario=None):
+    import json
+    now = datetime.utcnow().isoformat()
+    run_date = datetime.utcnow().strftime("%Y-%m-%d")
+    ensure_optimization_table()
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO optimization_results "
+            "(portfolio_id, run_date, run_type, weights, cash, expected_return, "
+            "cvar, solver, stress_scenario, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (portfolio_id, run_date, run_type,
+             json.dumps(weights_json) if isinstance(weights_json, dict) else weights_json,
+             cash, expected_return, cvar, solver, stress_scenario, now),
+        )
+
+
+def get_latest_optimization(portfolio_id, run_type=None):
+    import json
+    ensure_optimization_table()
+    with get_conn() as conn:
+        if run_type:
+            row = conn.execute(
+                "SELECT * FROM optimization_results WHERE portfolio_id=? AND run_type=? "
+                "ORDER BY created_at DESC LIMIT 1",
+                (portfolio_id, run_type),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                "SELECT * FROM optimization_results WHERE portfolio_id=? "
+                "ORDER BY created_at DESC LIMIT 1",
+                (portfolio_id,),
+            ).fetchone()
+        if row:
+            d = dict(row)
+            d["weights"] = json.loads(d["weights"])
+            return d
+        return None

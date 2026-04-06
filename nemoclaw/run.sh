@@ -54,6 +54,10 @@ if [ -f "$OPTIONS_FILE" ]; then
     export VLLM_MODEL=$(jq -r '.vllm_model' "$OPTIONS_FILE")
     export PORTFOLIO_DB_PATH=$(jq -r '.portfolio_db_path' "$OPTIONS_FILE")
     export TZ=$(jq -r '.timezone' "$OPTIONS_FILE")
+    export SPARK_API_URL=$(jq -r '.spark_api_url // "http://192.168.6.241:8080/api/v1"' "$OPTIONS_FILE")
+    export SPARK_API_KEY=$(jq -r '.spark_api_key // ""' "$OPTIONS_FILE")
+    export AGENT_API_PORT=$(jq -r '.agent_api_port // 18792' "$OPTIONS_FILE")
+    export AGENT_API_KEY=$(jq -r '.agent_api_key // ""' "$OPTIONS_FILE")
     log "Options loaded"
 fi
 
@@ -144,6 +148,19 @@ if [ -n "${TELEGRAM_BOT_TOKEN}" ] && [ "${TELEGRAM_BOT_TOKEN}" != "null" ]; then
   log "Telegram bot token set for OpenClaw"
 fi
 
+# ── Start agent HTTP API (FastAPI on AGENT_API_PORT) ───────────────
+# Exposes the agent loop to the dashboard and other clients.
+# host_network: true means this binds on the Pi's loopback at 127.0.0.1.
+
+log "Starting agent_api on port ${AGENT_API_PORT:-18792}..."
+PYTHONPATH=/opt/nemoclaw/agent python3 -m uvicorn nemoclaw.agent_api:app \
+    --host 0.0.0.0 \
+    --port "${AGENT_API_PORT:-18792}" \
+    --log-level info \
+    > /tmp/nemoclaw-agent-api.log 2>&1 &
+AGENT_API_PID=$!
+log "agent_api PID: ${AGENT_API_PID}"
+
 # ── Start portfolio data agent in background ───────────────────────
 # Handles price updates and snapshots only — no Telegram (OpenClaw does that)
 
@@ -155,7 +172,7 @@ os.environ.setdefault('PORTFOLIO_DB_PATH', os.environ.get('PORTFOLIO_DB_PATH', '
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s')
 logger = logging.getLogger('nemoclaw.agent')
 from nemoclaw import portfolio, config
-from nemoclaw.tasks import run_price_update, run_daily_snapshot, run_smart_alerts, run_news_check, run_daily_analysis, run_weekly_review
+from nemoclaw.tasks import run_price_update, run_daily_snapshot, run_smart_alerts, run_news_check, run_daily_analysis, run_weekly_review, run_weekly_optimize
 
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '-5290115098')
@@ -190,6 +207,11 @@ def task_weekly():
     if msg:
         send_telegram(msg)
 
+def task_optimize():
+    msg = run_weekly_optimize()
+    if msg:
+        send_telegram(msg)
+
 try:
     portfolio.fetch_prices()
     logger.info('Initial price fetch complete')
@@ -202,6 +224,7 @@ schedule.every(2).hours.do(task_news)
 schedule.every().day.at('07:30').do(task_daily)
 schedule.every().day.at('21:05').do(run_daily_snapshot)
 schedule.every().saturday.at('09:00').do(task_weekly)
+schedule.every().sunday.at('10:00').do(task_optimize)
 
 logger.info('Data agent running:')
 logger.info('  Prices: every 15min (silent)')
@@ -209,6 +232,7 @@ logger.info('  Smart alerts: every 30min (Telegram if significant)')
 logger.info('  News: every 2hrs (Telegram if relevant)')
 logger.info('  Morning brief: 07:30 UTC (Telegram)')
 logger.info('  Weekly review: Saturday 09:00 UTC (Telegram)')
+logger.info('  NVIDIA optimize: Sunday 10:00 UTC (Telegram)')
 logger.info('  Snapshot: 21:05 UTC (silent)')
 
 while True:

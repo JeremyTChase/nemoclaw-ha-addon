@@ -344,9 +344,50 @@ def run_daily_analysis():
                 f"Vol={m['volatility_annual']:.1%}, MDD={m['max_drawdown']:.1%}"
             )
 
+        # Include value trend from dashboard snapshots
+        value_hist = db.get_portfolio_total_value_history(p["id"], days=7)
+        if len(value_hist) >= 2:
+            latest = value_hist[0]["total_value"]
+            week_ago = value_hist[-1]["total_value"]
+            week_change = (latest - week_ago) / week_ago if week_ago else 0
+            context_parts.append(
+                f"Value trend: £{latest:,.0f} ({week_change:+.1%} this week)"
+            )
+
+        # Include drift from optimizer targets if available
+        opt = db.get_latest_optimization(p["id"])
+        if opt:
+            rows, total = portfolio.get_portfolio_summary(p["id"])
+            current_weights = {r["ticker"]: r["weight"] for r in rows}
+            total_drift = sum(
+                abs(current_weights.get(t, 0) - w)
+                for t, w in opt["weights"].items()
+            )
+            if total_drift > 0.15:
+                context_parts.append(
+                    f"⚠ Portfolio drift from optimizer target: {total_drift:.0%}"
+                )
+
     macro = db.get_latest_macro()
     macro_lines = [f"  {k}: {v['value']:.2f}" for k, v in macro.items()]
     context_parts.append(f"Macro indicators:\n" + "\n".join(macro_lines))
+
+    # Flag concerning macro conditions
+    vix = macro.get("^VIX", {}).get("value", 0)
+    oil = macro.get("CL=F", {}).get("value", 0)
+    if vix > 25:
+        context_parts.append(f"⚠ VIX at {vix:.1f} — elevated fear")
+    if oil > 90:
+        context_parts.append(f"⚠ Oil at ${oil:.0f}/bbl — supply concerns")
+
+    # Recent trades for context
+    recent_trades = db.get_transaction_log(limit=5)
+    if recent_trades:
+        trade_lines = [
+            f"  {t['logged_at'][:10]} {t['action']} {t['ticker']} ({t['portfolio_id']})"
+            for t in recent_trades
+        ]
+        context_parts.append(f"Recent trades:\n" + "\n".join(trade_lines))
 
     # Include today's news
     news = fetch_relevant_news()
@@ -358,9 +399,10 @@ def run_daily_analysis():
         "\n\n".join(context_parts) + "\n\n"
         "Provide a concise morning brief:\n"
         "1. Key overnight moves affecting the portfolio\n"
-        "2. What to watch today\n"
-        "3. Any macro/geopolitical concerns (Middle East, trade policy, rates)\n"
-        "4. One actionable suggestion if warranted\n\n"
+        "2. Portfolio value trend and any drift from optimizer targets\n"
+        "3. What to watch today\n"
+        "4. Any macro/geopolitical concerns (Middle East, trade policy, rates)\n"
+        "5. One actionable suggestion if warranted\n\n"
         "Keep it under 200 words — this is a Telegram message."
     )
 
@@ -373,7 +415,10 @@ def run_daily_analysis():
 # ─── Weekly review ────────────────────────────────────────────────
 
 def run_weekly_review():
-    """Weekend portfolio review with rebalancing suggestions."""
+    """Weekend portfolio review with rebalancing suggestions.
+
+    Includes NVIDIA optimizer results, risk trends, trade history, and macro context.
+    """
     context_parts = []
     for p in db.get_portfolios():
         rows, total = portfolio.get_portfolio_summary(p["id"])
@@ -387,21 +432,140 @@ def run_weekly_review():
                 f"MDD={m['max_drawdown']:.1%}, CVaR={m['cvar_95']:.2%}"
             )
 
+        # Risk trend from dashboard snapshots
+        risk_hist = db.get_risk_history(p["id"], days=30)
+        if len(risk_hist) >= 7:
+            recent_sharpe = risk_hist[0].get("sharpe_ratio")
+            older_sharpe = risk_hist[-1].get("sharpe_ratio")
+            if recent_sharpe is not None and older_sharpe is not None:
+                sharpe_delta = recent_sharpe - older_sharpe
+                context_parts.append(f"  Sharpe trend (30d): {sharpe_delta:+.2f}")
+
+        # Value trend
+        value_hist = db.get_portfolio_total_value_history(p["id"], days=30)
+        if len(value_hist) >= 2:
+            latest_val = value_hist[0]["total_value"]
+            month_ago_val = value_hist[-1]["total_value"]
+            month_change = (latest_val - month_ago_val) / month_ago_val if month_ago_val else 0
+            context_parts.append(f"  Value trend (30d): {month_change:+.1%}")
+
+        # Include optimizer recommendation if available
+        opt = db.get_latest_optimization(p["id"])
+        if opt:
+            context_parts.append(f"\n  NVIDIA optimizer recommendation ({opt['run_date']}, {opt['run_type']}):")
+            context_parts.append(f"  CVaR: {opt.get('cvar', 0):.4f}  |  E[return]: {opt.get('expected_return', 0):.4f}")
+            current_weights = {r["ticker"]: r["weight"] for r in rows}
+            for ticker, w in sorted(opt["weights"].items(), key=lambda x: -x[1]):
+                cw = current_weights.get(ticker, 0)
+                drift = cw - w
+                drift_str = f" (drift: {drift:+.1%})" if abs(drift) > 0.02 else ""
+                context_parts.append(f"    {ticker:12s} target: {w:.1%}{drift_str}")
+
+    # Recent trades across all portfolios
+    recent_trades = db.get_transaction_log(limit=10)
+    if recent_trades:
+        context_parts.append("\nRecent trades this week:")
+        for t in recent_trades:
+            context_parts.append(
+                f"  {t['logged_at'][:10]} {t['action']} {t['ticker']} "
+                f"in {t['portfolio_id']} ({t.get('shares_before', 0):.1f} → {t.get('shares_after', 0):.1f})"
+            )
+
+    # Macro context
+    macro = db.get_latest_macro()
+    if macro:
+        macro_lines = []
+        labels = {"^VIX": "VIX", "GC=F": "Gold", "CL=F": "Oil", "^TNX": "10Y", "GBPUSD=X": "GBP/USD"}
+        for ind, data in macro.items():
+            label = labels.get(ind, ind)
+            macro_lines.append(f"  {label}: {data['value']:.2f}")
+        context_parts.append(f"\nMacro:\n" + "\n".join(macro_lines))
+
     prompt = (
         "\n".join(context_parts) + "\n\n"
         "Weekly review:\n"
         "1. Concentration risk — flag any position over 20%\n"
         "2. Sector balance — UK banks, defence, consumer, tech, ETFs\n"
         "3. Geographic split — UK vs US vs other\n"
-        "4. Top 3 specific rebalancing actions with reasoning\n"
-        "5. Macro outlook for next week\n\n"
-        "Be specific — name positions and amounts."
+        "4. Risk trend — is Sharpe/volatility improving or deteriorating?\n"
+        "5. Portfolio value trend — any concerning patterns?\n"
+        "6. Top 3 specific rebalancing actions with reasoning\n"
+        "7. If NVIDIA optimizer recommendations are shown, compare current weights to targets "
+        "and identify the biggest drift gaps. Prefix with 'NVIDIA optimizer recommends...'\n"
+        "8. Macro outlook for next week — flag any conditions that warrant stress testing\n\n"
+        "Be specific — name positions and amounts. Note any GIA (IBKR) positions if present."
     )
 
     analysis = llm.chat([{"role": "user", "content": prompt}], max_tokens=2000)
     db.insert_agent_log("weekly_review", analysis[:200], analysis)
     logger.info("Weekly review complete")
     return f"📋 Weekly Review\n\n{analysis}"
+
+
+# ─── Weekly optimisation (scheduled) ────────────────────────────────
+
+def run_weekly_optimize():
+    """Run NVIDIA cufolio optimizer for all portfolios and store results.
+
+    Returns a Telegram message summarising the optimal weights.
+    """
+    from nemoclaw import spark_client
+
+    messages = []
+    for p in db.get_portfolios():
+        positions = db.get_positions(p["id"])
+        if not positions:
+            continue
+
+        tickers = [pos["ticker"] for pos in positions]
+        rows, total_val = portfolio.get_portfolio_summary(p["id"])
+        current_weights = {r["ticker"]: r["weight"] for r in rows}
+
+        try:
+            result = spark_client.optimize(tickers=tickers, w_max=0.25)
+        except Exception as e:
+            logger.error(f"Weekly optimize failed for {p['id']}: {e}")
+            continue
+
+        opt_weights = result["weights"]
+        metrics = result["metrics"]
+
+        # Store result
+        db.insert_optimization_result(
+            p["id"], "scheduled", opt_weights,
+            result.get("cash", 0), metrics["expected_return"],
+            metrics["cvar"], result.get("solver_used", ""),
+        )
+
+        # Build message
+        lines = [f"\n{p['name']} — NVIDIA Optimizer"]
+        lines.append(f"CVaR: {metrics['cvar']:.4f}  |  E[return]: {metrics['expected_return']:.4f}")
+
+        # Show biggest delta trades
+        deltas = []
+        for t in set(list(current_weights) + list(opt_weights)):
+            cw = current_weights.get(t, 0)
+            ow = opt_weights.get(t, 0)
+            d = ow - cw
+            if abs(d) > 0.02:  # >2% change
+                action = "BUY" if d > 0 else "SELL"
+                deltas.append((t, d, action))
+
+        deltas.sort(key=lambda x: abs(x[1]), reverse=True)
+        if deltas:
+            lines.append("Rebalancing suggestions:")
+            for t, d, a in deltas[:5]:
+                lines.append(f"  {a} {t}: {d:+.1%}")
+
+        messages.append("\n".join(lines))
+
+    if not messages:
+        return None
+
+    msg = "🎯 Weekly Optimization\n" + "\n".join(messages)
+    db.insert_agent_log("weekly_optimize", msg[:200], msg)
+    logger.info("Weekly optimization complete")
+    return msg
 
 
 # ─── Daily snapshot (silent) ──────────────────────────────────────

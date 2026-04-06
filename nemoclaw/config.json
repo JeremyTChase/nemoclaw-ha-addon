@@ -1,6 +1,6 @@
 {
   "name": "JezFinanceClaw",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "slug": "nemoclaw",
   "description": "Jeremy's locked-down OpenClaw financial agent with portfolio monitoring skills. Connects to Telegram via @TheWolfAdvisor_bot.",
   "url": "https://github.com/JeremyTChase/nemoclaw-ha-addon",
@@ -28,7 +28,11 @@
     "vllm_base_url": "http://192.168.6.241:8000/v1",
     "vllm_model": "nvidia/Qwen3-Next-80B-A3B-Instruct-NVFP4",
     "portfolio_db_path": "/share/portfolio-dashboard/portfolio.db",
-    "timezone": "Europe/London"
+    "timezone": "Europe/London",
+    "spark_api_url": "http://192.168.6.241:8080/api/v1",
+    "spark_api_key": "",
+    "agent_api_port": 18792,
+    "agent_api_key": ""
   },
   "schema": {
     "install_mode": "list(package|source)",
@@ -43,6 +47,10 @@
     "vllm_base_url": "url",
     "vllm_model": "str",
     "portfolio_db_path": "str",
-    "timezone": "str"
+    "timezone": "str",
+    "spark_api_url": "str",
+    "spark_api_key": "password?",
+    "agent_api_port": "int(1,65535)",
+    "agent_api_key": "password?"
   }
 }

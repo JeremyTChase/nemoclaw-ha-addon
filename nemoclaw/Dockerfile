@@ -45,7 +45,10 @@ RUN pip3 install --no-cache-dir --break-system-packages \
   requests \
   feedparser \
   openai \
-  schedule
+  schedule \
+  fastapi \
+  'uvicorn[standard]' \
+  pydantic
 
 # Copy portfolio skills and run script
 COPY skills/ /opt/nemoclaw/skills/
