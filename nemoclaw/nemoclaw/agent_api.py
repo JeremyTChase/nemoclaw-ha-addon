@@ -196,3 +196,13 @@ def turn(session_id: int, req: TurnRequest):
         iterations=result["iterations"],
         duration_ms=duration_ms,
     )
+
+
+# ── Risk-page market stance (one-shot, structured) ───────────────────
+
+@app.get("/agent/stance/{portfolio_id}", dependencies=[Depends(require_key)])
+def stance(portfolio_id: str):
+    try:
+        return agent_core.get_stance(portfolio_id)
+    except Exception as e:
+        raise HTTPException(500, f"stance generation failed: {e}")

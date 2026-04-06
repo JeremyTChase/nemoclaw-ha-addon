@@ -23,7 +23,7 @@ from typing import Optional
 
 from openai import OpenAI
 
-from nemoclaw import chat_store, config
+from nemoclaw import chat_store, config, tools as nc_tools
 from nemoclaw.agent_tools import (
     execute_portfolio_tool,
     get_tool_schemas,
@@ -228,6 +228,104 @@ def _summarise_result(name: str, result) -> str:
         if "queued" in result:
             return "queued for chart"
     return "ok"
+
+
+# ── Market stance (one-shot structured output for Risk page) ─────────
+
+STANCE_SYSTEM = """You are JezFinanceClaw producing a single risk-stance assessment
+for a UK retail portfolio. Reply ONLY with a JSON object — no prose, no markdown.
+
+Schema:
+{
+  "stance": "bullish" | "bearish" | "neutral" | "cautious",
+  "confidence": "low" | "medium" | "high",
+  "timeframe": "short-term" | "medium-term" | "long-term",
+  "headline": "<one short sentence — max 90 chars>",
+  "reasoning": ["<bullet>", "<bullet>", "<bullet>"],
+  "key_risks": ["<bullet>", "<bullet>"],
+  "metrics": {
+    "volatility":   {"definition": "<1 sentence plain English>", "verdict": "<1-2 sentences in the context of THIS portfolio>", "tone": "good"|"warn"|"bad"|"neutral"},
+    "sharpe":       {"definition": "...", "verdict": "...", "tone": "..."},
+    "sortino":      {"definition": "...", "verdict": "...", "tone": "..."},
+    "max_drawdown": {"definition": "...", "verdict": "...", "tone": "..."},
+    "cvar":         {"definition": "...", "verdict": "...", "tone": "..."}
+  }
+}
+
+Stance guide:
+- bullish = expect portfolio to rise / risks declining
+- bearish = expect portfolio to fall / risks rising
+- cautious = mixed signals, lean defensive
+- neutral = balanced
+
+For each metric verdict: reference Jeremy's actual numbers and his account type
+(SIPP = conservative pension; SS_ISA = aggressive small ISA). Use "good" tone when
+the metric is healthy for that account, "warn" when borderline, "bad" when concerning.
+
+Ground every claim in the data. Be direct, no hedging waffle.
+"""
+
+
+def get_stance(portfolio_id: str) -> dict:
+    """One-shot LLM call that produces a structured bullish/bearish verdict.
+
+    Pulls live risk + macro data from tools.py, sends to vLLM with a
+    JSON-only prompt, parses and returns the structured object.
+    """
+    try:
+        risk_now = nc_tools.get_risk(account=portfolio_id)
+    except Exception as e:
+        risk_now = {"error": str(e)}
+    try:
+        risk_hist = nc_tools.get_risk_history(account=portfolio_id, days=30)
+    except Exception as e:
+        risk_hist = {"error": str(e)}
+    try:
+        macro = nc_tools.get_macro()
+    except Exception as e:
+        macro = {"error": str(e)}
+    try:
+        portfolio = nc_tools.get_portfolio(account=portfolio_id)
+    except Exception as e:
+        portfolio = {"error": str(e)}
+
+    user_payload = {
+        "portfolio_id": portfolio_id,
+        "risk_metrics_latest": risk_now,
+        "risk_history_30d": risk_hist,
+        "macro": macro,
+        "portfolio_summary": portfolio,
+    }
+
+    client = _client()
+    resp = client.chat.completions.create(
+        model=config.VLLM_MODEL,
+        messages=[
+            {"role": "system", "content": STANCE_SYSTEM},
+            {"role": "user",
+             "content": "Assess the stance for this portfolio.\n\nDATA:\n"
+                        + json.dumps(user_payload, default=str)[:14000]},
+        ],
+        temperature=0.2,
+        max_tokens=600,
+        response_format={"type": "json_object"},
+    )
+    raw = (resp.choices[0].message.content or "").strip()
+    try:
+        parsed = json.loads(raw)
+    except Exception:
+        # Try to salvage by stripping ```json fences
+        cleaned = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        parsed = json.loads(cleaned)
+    parsed["_meta"] = {
+        "portfolio_id": portfolio_id,
+        "data_freshness": {
+            "risk_now": bool(risk_now and "error" not in risk_now),
+            "macro": bool(macro and "error" not in macro),
+            "history_points": len(risk_hist) if isinstance(risk_hist, list) else 0,
+        },
+    }
+    return parsed
 
 
 # ── Auto-title helper ────────────────────────────────────────────────
