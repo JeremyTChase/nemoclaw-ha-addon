@@ -230,6 +230,44 @@ def _summarise_result(name: str, result) -> str:
     return "ok"
 
 
+def _parse_json_loose(raw: str) -> dict:
+    """Best-effort JSON parsing for LLM outputs.
+
+    Strategy: try strict json.loads first, then strip code fences,
+    then locate the first { and matching last }, then escape any
+    raw newlines inside string literals as a last resort.
+    """
+    if not raw:
+        raise ValueError("empty LLM response")
+    s = raw.strip()
+    # Strip markdown code fences
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s
+        if s.endswith("```"):
+            s = s[:-3]
+        s = s.strip()
+    try:
+        return json.loads(s)
+    except json.JSONDecodeError:
+        pass
+    # Locate outermost JSON object
+    first = s.find("{")
+    last = s.rfind("}")
+    if first >= 0 and last > first:
+        candidate = s[first:last + 1]
+        try:
+            return json.loads(candidate)
+        except json.JSONDecodeError as e:
+            # Last resort: try replacing literal newlines inside strings
+            try:
+                import re as _re
+                fixed = _re.sub(r'(?<!\\)\n(?=[^"]*"(?:[^"\\]|\\.)*$)', r'\\n', candidate)
+                return json.loads(fixed)
+            except Exception:
+                raise ValueError(f"could not parse JSON from LLM response: {e}; raw[:300]={raw[:300]}")
+    raise ValueError(f"no JSON object in LLM response; raw[:300]={raw[:300]}")
+
+
 # ── Market stance (one-shot structured output for Risk page) ─────────
 
 STANCE_SYSTEM = """You are JezFinanceClaw producing a single risk-stance assessment
@@ -311,12 +349,7 @@ def get_stance(portfolio_id: str) -> dict:
         response_format={"type": "json_object"},
     )
     raw = (resp.choices[0].message.content or "").strip()
-    try:
-        parsed = json.loads(raw)
-    except Exception:
-        # Try to salvage by stripping ```json fences
-        cleaned = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        parsed = json.loads(cleaned)
+    parsed = _parse_json_loose(raw)
     parsed["_meta"] = {
         "portfolio_id": portfolio_id,
         "data_freshness": {
