@@ -50,6 +50,10 @@ TOOL USE RULES:
 - For "what do you think of X" → consider <X>.
 - For rebalancing → optimize.
 - For scenario questions → stress_test.
+- BUDGET: at most ~6 tool calls per turn. Pick the minimum set that answers the question.
+- Do NOT pre-emptively run optimize/stress_test/frontier unless the user asked for that exact analysis.
+- After ~3-4 tool calls, you should already be writing the final answer. Stop calling tools and reply.
+- A simple greeting like "hello" requires ZERO tool calls — just greet back.
 
 STYLE:
 - Direct, no-nonsense. Flag concentration risks.
@@ -92,7 +96,7 @@ def run_turn(
     source: str = "dashboard",
     page: Optional[str] = None,
     page_context: Optional[dict] = None,
-    max_iterations: int = 12,
+    max_iterations: int = 24,
     temperature: float = 0.3,
     max_tokens: int = 2000,
 ) -> dict:
