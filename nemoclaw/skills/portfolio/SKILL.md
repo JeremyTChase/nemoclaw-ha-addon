@@ -189,4 +189,14 @@ Ask about your portfolio naturally:
 - "how's my GIA doing?" — shows IBKR positions
 - "optimise my GIA"
 
+IBKR PAPER MIRROR (read-only via ibkr_gateway add-on):
+- ibkr_health — connection status (account, server version)
+- ibkr_positions — current paper positions with mkt value + unrealized P&L
+- ibkr_orders — today's orders with status (Filled / PreSubmitted / Cancelled)
+- ibkr_pnl — daily / unrealized / realized P&L
+- ibkr_reconcile — Freetrade book vs IBKR mirror, returns matches + share deltas + missing on either side. Use when Jeremy says "do my books match", "reconcile", "check IBKR vs Freetrade".
+- "show IBKR open orders" → ibkr_orders
+- "what's filled in IBKR?" → ibkr_orders, then describe Filled rows only
+- "reconcile" → ibkr_reconcile, summarise: N matched, M mismatched, list deltas
+
 **All commands update the shared database** — the Streamlit dashboard will reflect changes immediately.

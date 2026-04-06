@@ -58,6 +58,8 @@ if [ -f "$OPTIONS_FILE" ]; then
     export SPARK_API_KEY=$(jq -r '.spark_api_key // ""' "$OPTIONS_FILE")
     export AGENT_API_PORT=$(jq -r '.agent_api_port // 18792' "$OPTIONS_FILE")
     export AGENT_API_KEY=$(jq -r '.agent_api_key // ""' "$OPTIONS_FILE")
+    export IBKR_API_URL=$(jq -r '.ibkr_api_url // "http://127.0.0.1:8600"' "$OPTIONS_FILE")
+    export IBKR_API_KEY=$(jq -r '.ibkr_api_key // ""' "$OPTIONS_FILE")
     log "Options loaded"
 fi
 

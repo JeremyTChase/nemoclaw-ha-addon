@@ -16,8 +16,35 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from nemoclaw import db, portfolio, tasks
+from nemoclaw import db, ibkr_client, portfolio, tasks
 from nemoclaw.ticker_search import search_tickers as _search_tickers
+
+
+# ── IBKR (paper) read-only tools ──────────────────────────────────────
+
+def ibkr_health() -> dict:
+    """Liveness check for the IBKR Gateway shim."""
+    return ibkr_client.health()
+
+
+def ibkr_positions() -> dict:
+    """Current IBKR paper positions with market value and unrealized P&L."""
+    return {"positions": ibkr_client.positions()}
+
+
+def ibkr_orders() -> dict:
+    """Today's IBKR orders (open + recently filled/cancelled)."""
+    return {"orders": ibkr_client.orders()}
+
+
+def ibkr_pnl(account: Optional[str] = None) -> dict:
+    """Daily / unrealized / realized P&L from IBKR for the (paper) account."""
+    return ibkr_client.pnl(account)
+
+
+def ibkr_reconcile() -> dict:
+    """Reconcile Freetrade book vs IBKR mirror — matches, deltas, missing."""
+    return ibkr_client.reconciliation()
 
 # ── ETF awareness (duplicated from cli.py so both import from here) ──
 KNOWN_ETFS: set[str] = {
@@ -527,6 +554,11 @@ READONLY_TOOLS: dict[str, Any] = {
     "stress_test": stress_test,
     "frontier": frontier,
     "backtest": backtest,
+    "ibkr_health": ibkr_health,
+    "ibkr_positions": ibkr_positions,
+    "ibkr_orders": ibkr_orders,
+    "ibkr_pnl": ibkr_pnl,
+    "ibkr_reconcile": ibkr_reconcile,
 }
 
 WRITE_TOOLS: dict[str, Any] = {

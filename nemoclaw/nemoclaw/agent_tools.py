@@ -133,6 +133,33 @@ PORTFOLIO_TOOL_SCHEMAS: list[dict] = [
         }},
     }},
     {"type": "function", "function": {
+        "name": "ibkr_health",
+        "description": "Check IBKR Gateway connection status (paper account).",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+    {"type": "function", "function": {
+        "name": "ibkr_positions",
+        "description": "List IBKR paper positions with market value and unrealized P&L.",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+    {"type": "function", "function": {
+        "name": "ibkr_orders",
+        "description": "List today's IBKR orders (open, filled, cancelled) with status.",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+    {"type": "function", "function": {
+        "name": "ibkr_pnl",
+        "description": "Daily / unrealized / realized P&L for the IBKR paper account.",
+        "parameters": {"type": "object", "properties": {
+            "account": {"type": "string", "description": "Optional IBKR account id"},
+        }},
+    }},
+    {"type": "function", "function": {
+        "name": "ibkr_reconcile",
+        "description": "Reconcile Freetrade book vs IBKR mirror — returns matches, share deltas, and missing positions on either side. Use when Jeremy asks 'do my books match' or 'reconcile IBKR'.",
+        "parameters": {"type": "object", "properties": {}},
+    }},
+    {"type": "function", "function": {
         "name": "backtest",
         "description": "Backtest the current or optimal portfolio.",
         "parameters": {"type": "object", "properties": {
