@@ -92,7 +92,7 @@ def run_turn(
     source: str = "dashboard",
     page: Optional[str] = None,
     page_context: Optional[dict] = None,
-    max_iterations: int = 6,
+    max_iterations: int = 12,
     temperature: float = 0.3,
     max_tokens: int = 2000,
 ) -> dict:
