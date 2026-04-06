@@ -335,6 +335,40 @@ def get_stance(portfolio_id: str) -> dict:
         "portfolio_summary": portfolio,
     }
 
+    # Strict JSON schema for vLLM guided generation
+    metric_obj = {
+        "type": "object",
+        "properties": {
+            "definition": {"type": "string"},
+            "verdict": {"type": "string"},
+            "tone": {"type": "string", "enum": ["good", "warn", "bad", "neutral"]},
+        },
+        "required": ["definition", "verdict", "tone"],
+    }
+    stance_schema = {
+        "type": "object",
+        "properties": {
+            "stance": {"type": "string", "enum": ["bullish", "bearish", "neutral", "cautious"]},
+            "confidence": {"type": "string", "enum": ["low", "medium", "high"]},
+            "timeframe": {"type": "string", "enum": ["short-term", "medium-term", "long-term"]},
+            "headline": {"type": "string"},
+            "reasoning": {"type": "array", "items": {"type": "string"}},
+            "key_risks": {"type": "array", "items": {"type": "string"}},
+            "metrics": {
+                "type": "object",
+                "properties": {
+                    "volatility":   metric_obj,
+                    "sharpe":       metric_obj,
+                    "sortino":      metric_obj,
+                    "max_drawdown": metric_obj,
+                    "cvar":         metric_obj,
+                },
+                "required": ["volatility", "sharpe", "sortino", "max_drawdown", "cvar"],
+            },
+        },
+        "required": ["stance", "confidence", "timeframe", "headline", "reasoning", "key_risks", "metrics"],
+    }
+
     client = _client()
     resp = client.chat.completions.create(
         model=config.VLLM_MODEL,
@@ -345,8 +379,8 @@ def get_stance(portfolio_id: str) -> dict:
                         + json.dumps(user_payload, default=str)[:14000]},
         ],
         temperature=0.2,
-        max_tokens=600,
-        response_format={"type": "json_object"},
+        max_tokens=1500,
+        extra_body={"guided_json": stance_schema},
     )
     raw = (resp.choices[0].message.content or "").strip()
     parsed = _parse_json_loose(raw)
