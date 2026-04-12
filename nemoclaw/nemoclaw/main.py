@@ -1,4 +1,4 @@
-"""NemoClaw main entry point — runs Telegram bot + scheduled tasks."""
+"""JezFinanceClaw main entry point — runs Telegram bot + scheduled tasks."""
 
 import asyncio
 import logging
@@ -141,7 +141,7 @@ def _scheduler_thread():
 def main():
     global _bot_app
 
-    logger.info("NemoClaw starting...")
+    logger.info("JezFinanceClaw starting...")
     logger.info(f"Telegram bot: @TheWolfAdvisor_bot")
     logger.info(f"Chat ID: {config.TELEGRAM_CHAT_ID}")
     logger.info(f"vLLM: {config.VLLM_BASE_URL}")

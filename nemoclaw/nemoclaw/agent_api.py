@@ -1,9 +1,9 @@
-"""FastAPI HTTP edge for the JezFinanceClaw agent.
+"""FastAPI HTTP edge for JezFinanceClaw.
 
-Exposes the agent loop to dashboard / external clients. Auth via X-API-Key
-header (key set via the AGENT_API_KEY env var, configured by HA add-on options).
+Exposes agent chat sessions AND portfolio data to JezFinancialDashboard.
+Auth via X-API-Key header (key set via AGENT_API_KEY env var).
 
-Endpoints:
+Agent endpoints:
   GET    /agent/health
   POST   /agent/sessions
   GET    /agent/sessions
@@ -12,6 +12,15 @@ Endpoints:
   DELETE /agent/sessions/{id}
   GET    /agent/sessions/{id}/messages
   POST   /agent/sessions/{id}/turn
+
+Portfolio data endpoints:
+  GET    /api/health
+  GET    /api/portfolios
+  GET    /api/portfolios/{pid}/positions
+  GET    /api/portfolios/{pid}/risk
+  GET    /api/portfolios/{pid}/risk_history
+  GET    /api/tickers
+  GET    /api/prices/{ticker}
 
 Run standalone:
   uvicorn nemoclaw.agent_api:app --host 0.0.0.0 --port 18792
@@ -26,7 +35,7 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from nemoclaw import agent_core, chat_store
+from nemoclaw import agent_core, chat_store, db, portfolio as _pf
 from nemoclaw.agent_tools import PORTFOLIO_TOOL_SCHEMAS, CHART_TOOL_SCHEMAS
 
 
@@ -196,6 +205,86 @@ def turn(session_id: int, req: TurnRequest):
         iterations=result["iterations"],
         duration_ms=duration_ms,
     )
+
+
+# ── Portfolio data (consumed by JezFinancialDashboard) ────────────────
+
+
+@app.get("/api/health")
+def data_health():
+    return {"ok": True, "service": "JezFinanceClaw"}
+
+
+@app.get("/api/portfolios")
+def list_portfolios():
+    """List all portfolios with total value and holdings count."""
+    rows = db.get_portfolios()
+    result = []
+    for p in rows:
+        try:
+            positions, total = _pf.get_portfolio_summary(p["id"])
+            n = len(positions)
+        except Exception:
+            total, n = 0, 0
+        result.append({
+            "id": p["id"],
+            "name": p["name"],
+            "total_value": round(total, 2),
+            "n_holdings": n,
+        })
+    result.sort(key=lambda x: -x["total_value"])
+    return result
+
+
+@app.get("/api/portfolios/{pid}/positions")
+def get_positions(pid: str):
+    """Holdings with current prices and weights."""
+    positions, total = _pf.get_portfolio_summary(pid)
+    for r in positions:
+        r["weight"] = round(r.get("weight", 0), 4)
+        r["market_value"] = round(r.get("market_value", 0), 2)
+    return positions
+
+
+@app.get("/api/portfolios/{pid}/risk")
+def get_risk(pid: str):
+    """Latest risk metrics for a portfolio."""
+    m = db.get_latest_risk_metrics(pid)
+    return m if m else {}
+
+
+@app.get("/api/portfolios/{pid}/risk_history")
+def get_risk_history(pid: str, days: int = 90):
+    """Risk metrics time series."""
+    return db.get_risk_history(pid, days=days)
+
+
+@app.get("/api/tickers")
+def list_tickers():
+    """All tickers held across portfolios."""
+    tickers = db.get_all_tickers()
+    return [{"ticker": t, "company": t} for t in tickers]
+
+
+@app.get("/api/prices/{ticker}")
+def get_prices(ticker: str, days: int = 365):
+    """Daily close prices for a ticker."""
+    from datetime import datetime, timedelta
+    start = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT date, close FROM prices WHERE ticker=? AND date>=? ORDER BY date",
+            (ticker, start),
+        ).fetchall()
+    if not rows:
+        return {"ticker": ticker, "currency": None, "points": []}
+    is_pence = ticker.upper().endswith(".L")
+    ccy = "GBP" if is_pence else "USD"
+    points = [
+        {"time": r["date"], "value": (r["close"] / 100.0) if is_pence else r["close"]}
+        for r in rows
+    ]
+    return {"ticker": ticker, "currency": ccy, "points": points}
 
 
 # ── Risk-page market stance (one-shot, structured) ───────────────────

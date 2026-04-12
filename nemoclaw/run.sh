@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() { printf "[nemoclaw] %s\n" "$*"; }
+log() { printf "[jezfinanceclaw] %s\n" "$*"; }
 
 log "JezFinanceClaw starting — OpenClaw + Portfolio Skills"
 

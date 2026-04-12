@@ -1,4 +1,4 @@
-"""Telegram bot — NemoClaw's interface to Jeremy."""
+"""Telegram bot — JezFinanceClaw's interface to Jeremy."""
 
 import logging
 import re
@@ -36,7 +36,7 @@ def _auth(func):
 @_auth
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "NemoClaw online. 🐺\n\n"
+        "JezFinanceClaw online. 🐺\n\n"
         "Commands:\n"
         "/portfolio — view positions & values\n"
         "/sip — SIP (SIPP) summary\n"
@@ -66,7 +66,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """System status check."""
     import os
-    lines = ["🔧 NemoClaw Status\n"]
+    lines = ["🔧 JezFinanceClaw Status\n"]
 
     # Portfolios
     portfolios = db.get_portfolios()
