@@ -258,7 +258,12 @@ def get_risk(pid: str):
 @app.get("/api/portfolios/{pid}/risk_history")
 def get_risk_history(pid: str, days: int = 90):
     """Risk metrics time series."""
-    return db.get_risk_history(pid, days=days)
+    rows = db.get_risk_history(pid, days=days)
+    # Dashboard sparklines expect calculated_at field
+    for r in rows:
+        if "date" in r and "calculated_at" not in r:
+            r["calculated_at"] = r["date"]
+    return rows
 
 
 @app.get("/api/tickers")
