@@ -241,6 +241,8 @@ def get_positions(pid: str):
     """Holdings with current prices and weights."""
     positions, total = _pf.get_portfolio_summary(pid)
     for r in positions:
+        r["current_price"] = round(r.pop("price_gbp", 0), 4)
+        r["company"] = r.get("ticker", "")  # placeholder until ticker_names table populated
         r["weight"] = round(r.get("weight", 0), 4)
         r["market_value"] = round(r.get("market_value", 0), 2)
     return positions
