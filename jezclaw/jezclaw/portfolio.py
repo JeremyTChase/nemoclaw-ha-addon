@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from . import db
 
-logger = logging.getLogger("nemoclaw.portfolio")
+logger = logging.getLogger("jezclaw.portfolio")
 
 _LSE_GBP = {"VJPN.L", "VWRP.L"}
 

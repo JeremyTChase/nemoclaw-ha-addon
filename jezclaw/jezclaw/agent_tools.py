@@ -1,6 +1,6 @@
 """Tool registry for the agent — schemas + dispatch.
 
-Portfolio tools (READONLY_TOOLS from nemoclaw.tools) execute server-side.
+Portfolio tools (READONLY_TOOLS from jezclaw.tools) execute server-side.
 Chart tools are *queue-only*: the agent can call them but they execute on
 the dashboard side after the response is returned (the dashboard owns
 st.session_state, the agent does not). Queued chart actions are returned
@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from nemoclaw import tools as nc_tools
+from jezclaw import tools as nc_tools
 
 
 ACCOUNT_ENUM = ["sip", "ss_isa", "gia"]

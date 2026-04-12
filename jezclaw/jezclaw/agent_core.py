@@ -9,7 +9,7 @@ Per turn:
   2. Build system prompt (persona + page/source context)
   3. Send to vLLM with tool schemas
   4. If response has tool_calls:
-       - Portfolio tools execute server-side via nemoclaw.tools
+       - Portfolio tools execute server-side via jezclaw.tools
        - Chart tools are queued (executed client-side by the dashboard)
        - Persist tool results, loop
   5. Otherwise persist final assistant message and return
@@ -23,15 +23,15 @@ from typing import Optional
 
 from openai import OpenAI
 
-from nemoclaw import chat_store, config, tools as nc_tools
-from nemoclaw.agent_tools import (
+from jezclaw import chat_store, config, tools as nc_tools
+from jezclaw.agent_tools import (
     execute_portfolio_tool,
     get_tool_schemas,
     is_chart_tool,
     queue_chart_action,
 )
 
-logger = logging.getLogger("nemoclaw.agent_core")
+logger = logging.getLogger("jezclaw.agent_core")
 
 
 SYSTEM_BASE = """You are JezFinanceClaw, Jeremy's personal portfolio analyst.

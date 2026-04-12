@@ -1,7 +1,7 @@
 """Shared tool layer — pure return-value functions for portfolio operations.
 
 This module is the single source of truth for portfolio tool logic. Both
-the nemoclaw CLI (cli.py) and the Streamlit dashboard agent import from here.
+the jezclaw CLI (cli.py) and the Streamlit dashboard agent import from here.
 
 Design rules:
 - Every function returns a plain Python dict / list — no printing, no side
@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
-from nemoclaw import db, ibkr_client, portfolio, tasks
-from nemoclaw.ticker_search import search_tickers as _search_tickers
+from jezclaw import db, ibkr_client, portfolio, tasks
+from jezclaw.ticker_search import search_tickers as _search_tickers
 
 
 # ── IBKR (paper) read-only tools ──────────────────────────────────────
@@ -223,7 +223,7 @@ def get_last_optimize(account: Optional[str] = None) -> dict:
 
 
 def look_through(account: Optional[str] = None) -> dict:
-    from nemoclaw.etf_holdings import compute_look_through, get_overlap_warnings
+    from jezclaw.etf_holdings import compute_look_through, get_overlap_warnings
     out = []
     for p in _portfolios_for(account):
         rows, total = portfolio.get_portfolio_summary(p["id"])
@@ -251,8 +251,8 @@ def _etf_overrides_for(tickers: list[str]) -> Optional[dict[str, float]]:
 
 def optimize(account: Optional[str] = None, store: bool = True) -> dict:
     """Run NVIDIA CVaR optimizer for one or all accounts."""
-    from nemoclaw import spark_client
-    from nemoclaw.etf_holdings import get_all_etf_holdings
+    from jezclaw import spark_client
+    from jezclaw.etf_holdings import get_all_etf_holdings
 
     out = []
     for p in _portfolios_for(account):
@@ -317,7 +317,7 @@ def optimize(account: Optional[str] = None, store: bool = True) -> dict:
 
 def consider(ticker: str, account: str = "sip") -> dict:
     """Evaluate a specific ticker — what does the optimizer think?"""
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     ticker = ticker.upper()
     positions = db.get_positions(account)
@@ -410,7 +410,7 @@ def consider(ticker: str, account: str = "sip") -> dict:
 
 
 def stress_test(scenario: str, account: Optional[str] = None) -> dict:
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     if scenario not in spark_client.STRESS_SCENARIOS:
         raise ValueError(f"unknown scenario: {scenario}. "
@@ -447,7 +447,7 @@ def stress_test(scenario: str, account: Optional[str] = None) -> dict:
 
 
 def frontier(account: Optional[str] = None, num_points: int = 12) -> dict:
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
     out = []
     for p in _portfolios_for(account):
         positions = db.get_positions(p["id"])
@@ -464,7 +464,7 @@ def frontier(account: Optional[str] = None, num_points: int = 12) -> dict:
 
 
 def backtest(account: str = "sip", use_optimal: bool = False) -> dict:
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
     positions = db.get_positions(account)
     if not positions:
         raise ValueError(f"no positions for {account}")

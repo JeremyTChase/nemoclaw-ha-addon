@@ -8,8 +8,8 @@ import sys
 # Set up environment
 os.environ.setdefault("PORTFOLIO_DB_PATH", "/share/portfolio-dashboard/portfolio.db")
 
-from nemoclaw import db, portfolio, tasks
-from nemoclaw.ticker_search import search_tickers
+from jezclaw import db, portfolio, tasks
+from jezclaw.ticker_search import search_tickers
 
 # Known ETFs/index funds — get a higher w_min floor (5%) to preserve diversification.
 # The optimizer doesn't see inside ETFs, so without this it underweights them
@@ -156,7 +156,7 @@ def cmd_alerts(args):
 
 def cmd_analyse(args):
     """Run market analysis (requires vLLM)."""
-    from nemoclaw import llm
+    from jezclaw import llm
     context_parts = []
     for p in db.get_portfolios():
         context_parts.append(portfolio.format_portfolio_text(p["id"]))
@@ -180,7 +180,7 @@ def cmd_prices(args):
 
 def cmd_optimize(args):
     """Optimise portfolio via NVIDIA cufolio on DGX Spark."""
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     account = args[0] if args else None
     portfolios_list = db.get_portfolios()
@@ -209,7 +209,7 @@ def cmd_optimize(args):
         etf_overrides = {t: ETF_W_MIN for t in etfs_in_portfolio} if etfs_in_portfolio else None
 
         # Get ETF constituent data for look-through scenario modelling
-        from nemoclaw.etf_holdings import get_all_etf_holdings
+        from jezclaw.etf_holdings import get_all_etf_holdings
         etf_constituents = get_all_etf_holdings(tickers) or None
 
         print(f"\nOptimising {p['name']} ({n_tickers} tickers) via NVIDIA cufolio...")
@@ -268,7 +268,7 @@ def cmd_optimize(args):
 
 def cmd_stress_test(args):
     """Run stress test scenario via NVIDIA cufolio on DGX Spark."""
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     if not args:
         print("Usage: stress-test <scenario> [sip|ss_isa|gia]")
@@ -343,7 +343,7 @@ def cmd_stress_test(args):
 
 def cmd_frontier(args):
     """Show efficient frontier via NVIDIA cufolio on DGX Spark."""
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     account = args[0] if args else None
     portfolios_list = db.get_portfolios()
@@ -374,7 +374,7 @@ def cmd_frontier(args):
 
 def cmd_backtest(args):
     """Backtest portfolio via NVIDIA cufolio on DGX Spark."""
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     account = args[0] if args else "sip"
     use_optimal = "optimal" in args
@@ -600,7 +600,7 @@ def cmd_look_through(args):
     Decomposes ETFs into constituents so you can see your real exposure.
     The ETF itself remains the tradeable unit — this is for awareness only.
     """
-    from nemoclaw.etf_holdings import compute_look_through, get_overlap_warnings
+    from jezclaw.etf_holdings import compute_look_through, get_overlap_warnings
 
     account = args[0] if args else None
     portfolios = db.get_portfolios()
@@ -668,7 +668,7 @@ def cmd_consider(args):
       consider VWRP.L        — should I increase my global ETF?
       consider AMZN ss_isa   — evaluate for ISA instead
     """
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     if not args:
         print("Usage: consider <TICKER> [sip|ss_isa|gia]")

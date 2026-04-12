@@ -4,7 +4,7 @@ import logging
 from openai import OpenAI
 from . import config
 
-logger = logging.getLogger("nemoclaw.llm")
+logger = logging.getLogger("jezclaw.llm")
 
 SYSTEM_PROMPT = """You are JezFinanceClaw, Jeremy's personal financial analyst agent. You monitor his Freetrade portfolios (SIP/SIPP and SS ISA) and provide concise, actionable insights.
 

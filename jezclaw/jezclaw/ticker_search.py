@@ -3,7 +3,7 @@
 import logging
 import requests
 
-logger = logging.getLogger("nemoclaw.ticker_search")
+logger = logging.getLogger("jezclaw.ticker_search")
 
 
 def search_tickers(query, max_results=8):

@@ -18,7 +18,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(name)s %(levelname)s %(message)s",
 )
-logger = logging.getLogger("nemoclaw")
+logger = logging.getLogger("jezclaw")
 
 _bot_app = None
 

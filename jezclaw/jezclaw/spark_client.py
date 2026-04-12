@@ -6,9 +6,9 @@ import logging
 
 import requests
 
-from nemoclaw import config
+from jezclaw import config
 
-logger = logging.getLogger("nemoclaw.spark")
+logger = logging.getLogger("jezclaw.spark")
 
 # Pre-defined stress scenarios (mirrors server/stress.py names)
 STRESS_SCENARIOS = ["gulf-war", "recession", "tech-crash", "rate-hike"]

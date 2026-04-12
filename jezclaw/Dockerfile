@@ -51,11 +51,11 @@ RUN pip3 install --no-cache-dir --break-system-packages \
   pydantic
 
 # Copy portfolio skills and run script
-COPY skills/ /opt/nemoclaw/skills/
-COPY nemoclaw/ /opt/nemoclaw/agent/nemoclaw/
+COPY skills/ /opt/jezclaw/skills/
+COPY jezclaw/ /opt/jezclaw/agent/jezclaw/
 COPY run.sh /run.sh
 RUN chmod +x /run.sh
 
-WORKDIR /opt/nemoclaw
+WORKDIR /opt/jezclaw
 
 CMD [ "/run.sh" ]

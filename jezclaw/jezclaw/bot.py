@@ -11,7 +11,7 @@ from telegram.ext import (
 from . import config, db, llm, portfolio
 from .ticker_search import search_tickers
 
-logger = logging.getLogger("nemoclaw.bot")
+logger = logging.getLogger("jezclaw.bot")
 
 
 def _auth(func):

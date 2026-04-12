@@ -17,7 +17,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-logger = logging.getLogger("nemoclaw.etf")
+logger = logging.getLogger("jezclaw.etf")
 
 # Cache file for refreshed holdings
 _CACHE_DIR = os.environ.get("PORTFOLIO_DB_PATH", "").rsplit("/", 1)[0] or "/tmp"

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-log() { printf "[jezfinanceclaw] %s\n" "$*"; }
+log() { printf "[jezclaw] %s\n" "$*"; }
 
 log "JezFinanceClaw starting — OpenClaw + Portfolio Skills"
 
 # ── Config ─────────────────────────────────────────────────────────
 
-BASE_DIR=/config/nemoclaw
+BASE_DIR=/config/jezclaw
 STATE_DIR="${BASE_DIR}/.openclaw"
 CONFIG_PATH="${STATE_DIR}/openclaw.json"
 WORKSPACE_DIR="${BASE_DIR}/workspace"
@@ -40,7 +40,7 @@ export OPENCLAW_STATE_DIR="${STATE_DIR}"
 export OPENCLAW_CONFIG_PATH="${CONFIG_PATH}"
 
 # Use separate temp dir to avoid lock file conflicts with other OpenClaw instances
-export TMPDIR="/tmp/nemoclaw-runtime"
+export TMPDIR="/tmp/jezclaw-runtime"
 mkdir -p "${TMPDIR}"
 
 # ── Read HA options ────────────────────────────────────────────────
@@ -66,7 +66,7 @@ fi
 # ── Install portfolio skills into OpenClaw ─────────────────────────
 
 log "Installing portfolio skills..."
-cp -r /opt/nemoclaw/skills/* "${SKILLS_DIR}/" 2>/dev/null || true
+cp -r /opt/jezclaw/skills/* "${SKILLS_DIR}/" 2>/dev/null || true
 log "Skills installed at ${SKILLS_DIR}"
 
 # ── Setup OpenClaw ─────────────────────────────────────────────────
@@ -110,7 +110,7 @@ if [ "${INSTALL_MODE}" = "source" ]; then
   cat > "${BASE_DIR}/bin/openclaw" <<'EOF_WRAPPER'
 #!/usr/bin/env bash
 set -euo pipefail
-exec node "/config/nemoclaw/openclaw-src/openclaw.mjs" "$@"
+exec node "/config/jezclaw/openclaw-src/openclaw.mjs" "$@"
 EOF_WRAPPER
   chmod +x "${BASE_DIR}/bin/openclaw"
 fi
@@ -155,11 +155,11 @@ fi
 # host_network: true means this binds on the Pi's loopback at 127.0.0.1.
 
 log "Starting agent_api on port ${AGENT_API_PORT:-18792}..."
-PYTHONPATH=/opt/nemoclaw/agent python3 -m uvicorn nemoclaw.agent_api:app \
+PYTHONPATH=/opt/jezclaw/agent python3 -m uvicorn jezclaw.agent_api:app \
     --host 0.0.0.0 \
     --port "${AGENT_API_PORT:-18792}" \
     --log-level info \
-    > /tmp/nemoclaw-agent-api.log 2>&1 &
+    > /tmp/jezclaw-agent-api.log 2>&1 &
 AGENT_API_PID=$!
 log "agent_api PID: ${AGENT_API_PID}"
 
@@ -167,14 +167,14 @@ log "agent_api PID: ${AGENT_API_PID}"
 # Handles price updates and snapshots only — no Telegram (OpenClaw does that)
 
 log "Starting data agent (prices, alerts, analysis)..."
-PYTHONPATH=/opt/nemoclaw/agent python3 -c "
+PYTHONPATH=/opt/jezclaw/agent python3 -c "
 import sys, os, time, logging, schedule, requests
-sys.path.insert(0, '/opt/nemoclaw/agent')
+sys.path.insert(0, '/opt/jezclaw/agent')
 os.environ.setdefault('PORTFOLIO_DB_PATH', os.environ.get('PORTFOLIO_DB_PATH', '/share/portfolio-dashboard/portfolio.db'))
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(name)s %(levelname)s %(message)s')
-logger = logging.getLogger('nemoclaw.agent')
-from nemoclaw import portfolio, config
-from nemoclaw.tasks import run_price_update, run_daily_snapshot, run_smart_alerts, run_news_check, run_daily_analysis, run_weekly_review, run_weekly_optimize
+logger = logging.getLogger('jezclaw.agent')
+from jezclaw import portfolio, config
+from jezclaw.tasks import run_price_update, run_daily_snapshot, run_smart_alerts, run_news_check, run_daily_analysis, run_weekly_review, run_weekly_optimize
 
 BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '-5290115098')

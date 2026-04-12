@@ -23,7 +23,7 @@ Portfolio data endpoints:
   GET    /api/prices/{ticker}
 
 Run standalone:
-  uvicorn nemoclaw.agent_api:app --host 0.0.0.0 --port 18792
+  uvicorn jezclaw.agent_api:app --host 0.0.0.0 --port 18792
 """
 
 from __future__ import annotations
@@ -35,8 +35,8 @@ from typing import Optional
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from nemoclaw import agent_core, chat_store, db, portfolio as _pf
-from nemoclaw.agent_tools import PORTFOLIO_TOOL_SCHEMAS, CHART_TOOL_SCHEMAS
+from jezclaw import agent_core, chat_store, db, portfolio as _pf
+from jezclaw.agent_tools import PORTFOLIO_TOOL_SCHEMAS, CHART_TOOL_SCHEMAS
 
 
 API_KEY = os.environ.get("AGENT_API_KEY", "")

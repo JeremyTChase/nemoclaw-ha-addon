@@ -10,7 +10,7 @@ from typing import Any, Optional
 
 import requests
 
-from nemoclaw import config, db
+from jezclaw import config, db
 
 
 def _headers() -> dict[str, str]:

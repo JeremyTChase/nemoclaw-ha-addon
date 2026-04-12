@@ -11,7 +11,7 @@ import json
 from datetime import datetime
 from typing import Optional
 
-from nemoclaw.db import get_conn
+from jezclaw.db import get_conn
 
 
 SCHEMA_SQL = """

@@ -9,7 +9,7 @@ import requests
 
 from . import db, llm, portfolio
 
-logger = logging.getLogger("nemoclaw.tasks")
+logger = logging.getLogger("jezclaw.tasks")
 
 
 # ─── Alert deduplication ───────────────────────────────────────────
@@ -509,7 +509,7 @@ def run_weekly_optimize():
 
     Returns a Telegram message summarising the optimal weights.
     """
-    from nemoclaw import spark_client
+    from jezclaw import spark_client
 
     messages = []
     for p in db.get_portfolios():
